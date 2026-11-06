@@ -1,20 +1,22 @@
 import js from '@eslint/js';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
+import tseslint from 'typescript-eslint';
 
-export default [
+export default tseslint.config(
   { ignores: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/.next/**', '**/coverage/**'] },
   js.configs.recommended,
+  ...tseslint.configs.recommended,
   {
-    files: ['apps/api/**/*.js'],
-    languageOptions: {
-      sourceType: 'commonjs',
-      globals: globals.node,
-    },
+    files: ['**/*.ts'],
     rules: {
-      // Express identifies error handlers by their four arguments, so an unused `next` is required.
-      'no-unused-vars': ['error', { argsIgnorePattern: '^next$' }],
+      // Express identifies error handlers by their four arguments, so an unused `_next` is required.
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
-  prettier,
-];
+  {
+    files: ['**/*.cjs'],
+    languageOptions: { sourceType: 'commonjs', globals: globals.node },
+  },
+  prettier
+);

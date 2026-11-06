@@ -1,26 +1,23 @@
-# Enterprise Node.js API Platform
+# API Management System
 
-Scalable backend API platform built using Node.js, Express.js, MySQL, Sequelize ORM, and JWT authentication.
+A platform where publishers list APIs, developers request access and receive API keys, and a gateway enforces those keys and tracks usage.
 
-## Features
+> **Status: in active development.** The project is being rebuilt in stages from an earlier MySQL prototype. Only what is listed under "Working today" exists so far.
 
-- JWT Authentication
-- RBAC Authorization
-- REST APIs
-- Sequelize ORM
-- MySQL Integration
-- Swagger Documentation
-- Environment Variables
-- Centralized Error Handling
+## Working today
 
-## Tech Stack
+- Express 5 API in strict TypeScript
+- Environment validation at startup
+- One JSON error format, including 404s and malformed requests
+- Security headers (Helmet) and a CORS allowlist
+- Jest and Supertest tests
 
-- Node.js
-- Express.js
-- MySQL
-- Sequelize
-- JWT
-- Swagger
+## Planned
+
+- Authentication and role-based access on PostgreSQL
+- API catalog, access requests and API keys on MongoDB
+- Gateway with rate limiting and usage analytics
+- Next.js dashboard
 
 ## Setup
 
@@ -32,14 +29,16 @@ cp apps/api/.env.example apps/api/.env
 npm run dev
 ```
 
-The project is an npm workspaces monorepo. The API lives in `apps/api`.
+The API runs at `http://localhost:5000`. Check it with `GET /api/v1/health`.
 
-| Command          | Purpose                        |
-| ---------------- | ------------------------------ |
-| `npm run dev`    | Start the API with auto-reload |
-| `npm run lint`   | Run ESLint                     |
-| `npm run format` | Format the code with Prettier  |
+The project is an npm workspaces monorepo, and the API lives in `apps/api`.
 
-## API Documentation
-
-http://localhost:5000/api-docs
+| Command             | Purpose                        |
+| ------------------- | ------------------------------ |
+| `npm run dev`       | Start the API with auto-reload |
+| `npm test`          | Run the tests                  |
+| `npm run typecheck` | Check types                    |
+| `npm run lint`      | Run ESLint                     |
+| `npm run format`    | Format the code with Prettier  |
+| `npm run build`     | Compile to `apps/api/dist`     |
+| `npm start`         | Run the compiled API           |
