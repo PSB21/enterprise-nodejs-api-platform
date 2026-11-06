@@ -1,28 +1,29 @@
 {
-  "name": "ams-management-system",
+  "name": "api-management-system",
   "version": "1.0.0",
-  "description": "",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
-  },
-  "keywords": [],
-  "author": "",
+  "private": true,
+  "description": "API management platform: publish APIs, approve access, issue keys and track usage.",
   "license": "ISC",
-  "dependencies": {
-    "bcryptjs": "^3.0.3",
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "express-validator": "^7.3.2",
-    "jsonwebtoken": "^9.0.3",
-    "mysql2": "^3.22.3",
-    "sequelize": "^6.37.8",
-    "swagger-ui-express": "^5.0.1",
-    "yamljs": "^0.3.0"
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@ams/api",
+    "start": "npm run start --workspace=@ams/api",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.14.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.14.0",
+    "prettier": "^3.9.10"
   }
 }

@@ -5,18 +5,18 @@ const sequelize = require('../config/database');
 const Order = sequelize.define('Order', {
   productName: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: false,
   },
 
   quantity: {
     type: DataTypes.INTEGER,
-    allowNull: false
+    allowNull: false,
   },
 
   price: {
     type: DataTypes.FLOAT,
-    allowNull: false
-  }
+    allowNull: false,
+  },
 });
 
 module.exports = Order;

@@ -1,5 +1,17 @@
+# Dependencies and build output
 node_modules
-.env
-database.sqlite
-coverage
 dist
+build
+.next
+coverage
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Local data
+database.sqlite
+
+# Personal job search notes: never publish these
+Pratik_Skill_Gap_Plan.xlsx
