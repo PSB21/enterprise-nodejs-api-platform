@@ -68,7 +68,7 @@ npm run dev                              # API:       http://localhost:5000
 npm run dev:web                          # dashboard: http://localhost:3000
 ```
 
-Demo accounts (password `DemoPass123!`): `developer@ams.dev`, `publisher@ams.dev`, `admin@ams.dev`.
+The seed script creates one account for each role (developer, publisher and admin) and prints their logins. Set `SEED_PASSWORD` before seeding to choose the password.
 
 API documentation (Swagger UI) is at http://localhost:5000/api/docs.
 
