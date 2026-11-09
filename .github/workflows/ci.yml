@@ -14,8 +14,22 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    name: Lint and format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+
   api:
-    name: API (lint, types, tests, build)
+    name: API (types, tests, build)
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -40,7 +54,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -53,8 +66,21 @@ jobs:
           key: mongodb-binaries-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - run: npm ci
-      - run: npm run lint
-      - run: npm run format:check
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
+      - run: npm run typecheck --workspace=@ams/api
+      - run: npm test --workspace=@ams/api
+      - run: npm run build --workspace=@ams/api
+
+  web:
+    name: Dashboard (types, tests, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck --workspace=@ams/web
+      - run: npm test --workspace=@ams/web
+      - run: npm run build --workspace=@ams/web

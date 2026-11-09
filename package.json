@@ -13,10 +13,11 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace=@ams/api",
-    "build": "npm run build --workspace=@ams/api",
+    "dev:web": "npm run dev --workspace=@ams/web",
+    "build": "npm run build --workspaces",
     "start": "npm run start --workspace=@ams/api",
-    "test": "npm run test --workspace=@ams/api",
-    "typecheck": "npm run typecheck --workspace=@ams/api",
+    "test": "npm run test --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -26,6 +27,7 @@
     "@eslint/js": "^10.0.1",
     "eslint": "^10.14.0",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.14.0",
     "prettier": "^3.9.10",
     "typescript-eslint": "^8.72.1"

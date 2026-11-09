@@ -5,3 +5,5 @@ build
 coverage
 package-lock.json
 apps/api/src/generated
+.next
+apps/web/next-env.d.ts
