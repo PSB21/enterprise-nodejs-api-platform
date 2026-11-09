@@ -1,0 +1,127 @@
+# The whole system on one machine: databases, broker, API, worker and dashboard.
+#
+#   docker compose up --build
+#   open http://localhost:3000
+#
+# Demo data: docker compose run --rm migrate npm run db:seed
+#
+# Needs roughly 2-3 GB of free memory. Passwords here are for local use only.
+
+name: ams
+
+x-api-env: &api-env
+  NODE_ENV: production
+  PORT: '5000'
+  DATABASE_URL: postgresql://ams:ams@postgres:5432/ams
+  MONGODB_URI: mongodb://mongo:27017/ams?replicaSet=rs0
+  REDIS_URL: redis://redis:6379
+  EVENT_BUS: rabbitmq
+  AMQP_URL: amqp://ams:ams@rabbitmq:5672
+  JWT_SECRET: local-development-secret-change-me-0123456789
+  CORS_ORIGINS: http://localhost:3000
+  # The seeded sample API points at the API container itself.
+  UPSTREAM_ALLOWED_HOSTS: api,localhost,127.0.0.1
+  SEED_UPSTREAM_BASE: http://api:5000
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ams
+      POSTGRES_PASSWORD: ams
+      POSTGRES_DB: ams
+    volumes: ['postgres-data:/var/lib/postgresql']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ams']
+      interval: 5s
+      retries: 10
+
+  # A one-member replica set: MongoDB transactions require a replica set.
+  mongo:
+    image: mongo:8
+    command: ['--replSet', 'rs0', '--bind_ip_all']
+    volumes: ['mongo-data:/data/db']
+    healthcheck:
+      # Initiates the replica set on first start, then reports healthy only once this member
+      # is the writable primary. quit() sets the exit code, which is what Docker checks.
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - "try { rs.status() } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongo:27017' }] }) } quit(db.hello().isWritablePrimary ? 0 : 1)"
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ams
+      RABBITMQ_DEFAULT_PASS: ams
+    ports: ['15672:15672'] # management UI: http://localhost:15672 (ams / ams)
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 10s
+      retries: 10
+
+  # Applies database migrations, then exits. Uses the build stage, which has the Prisma CLI.
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: build
+    working_dir: /app/apps/api
+    command: ['npx', 'prisma', 'migrate', 'deploy']
+    environment:
+      <<: *api-env
+      DATABASE_URL_UNPOOLED: postgresql://ams:ams@postgres:5432/ams
+      # The containers run with NODE_ENV=production; seeding these local databases is fine.
+      SEED_ALLOW_PRODUCTION: 'true'
+    depends_on:
+      postgres: { condition: service_healthy }
+      mongo: { condition: service_healthy }
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment: *api-env
+    ports: ['5000:5000']
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      mongo: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    command: ['node', 'dist/worker.js']
+    environment: *api-env
+    # The worker serves no HTTP, so the image's health check does not apply.
+    healthcheck:
+      disable: true
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      rabbitmq: { condition: service_healthy }
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        API_URL: http://api:5000
+    ports: ['3000:3000']
+    depends_on: [api]
+
+volumes:
+  postgres-data:
+  mongo-data:

@@ -90,6 +90,47 @@ jobs:
       - run: npm test --workspace=@ams/api
       - run: npm run build --workspace=@ams/api
 
+  docker:
+    name: Docker images and full stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [api, web]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the images
+        run: docker compose build
+
+      - name: Start every service
+        run: docker compose up -d
+
+      - name: Wait until the API is ready through the dashboard's proxy
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:3000/api/v1/health/ready; then exit 0; fi
+            sleep 5
+          done
+          docker compose ps
+          docker compose logs --tail=50
+          exit 1
+
+      - name: Smoke test
+        run: |
+          curl -fsS http://localhost:3000/login > /dev/null
+          docker compose run --rm migrate npm run db:seed
+          curl -fsS -X POST http://localhost:3000/api/v1/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"developer@ams.dev","password":"DemoPass123!"}' > /dev/null
+          echo "Stack is up and login works"
+
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --tail=100
+
+      - name: Stop
+        if: always()
+        run: docker compose down -v
+
   web:
     name: Dashboard (types, tests, build)
     runs-on: ubuntu-latest

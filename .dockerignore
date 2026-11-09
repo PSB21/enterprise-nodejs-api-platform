@@ -1,0 +1,16 @@
+# Keep build contexts small, and keep secrets and private files out of images.
+.git
+**/node_modules
+**/dist
+**/.next
+**/coverage
+**/*.tsbuildinfo
+apps/api/src/generated
+
+**/.env
+**/.env.*
+!**/.env.example
+.neon
+
+docs/interview-notes.md
+*.xlsx
