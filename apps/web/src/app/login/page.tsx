@@ -10,8 +10,6 @@ import { errorMessage } from '@/lib/errors';
 import { login } from '@/lib/session';
 import { useAppSelector } from '@/store';
 
-const DEMO_ACCOUNTS = ['developer@ams.dev', 'publisher@ams.dev', 'admin@ams.dev'];
-
 export default function LoginPage() {
   const router = useRouter();
   const status = useAppSelector((s) => s.auth.status);
@@ -44,14 +42,6 @@ export default function LoginPage() {
           Create one
         </Link>
       </p>
-      <div className="mt-5 rounded-md bg-slate-50 p-3 text-xs text-slate-600">
-        <p className="font-medium">Demo accounts (password DemoPass123!)</p>
-        <ul className="mt-1 space-y-0.5">
-          {DEMO_ACCOUNTS.map((email) => (
-            <li key={email}>{email}</li>
-          ))}
-        </ul>
-      </div>
     </AuthCard>
   );
 }
