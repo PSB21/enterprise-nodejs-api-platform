@@ -152,6 +152,29 @@ describe('GET /api/v1/apis', () => {
     expect(none.body.meta.total).toBe(0);
   });
 
+  it('searches tags only when the term starts with #', async () => {
+    const publisher = await createUser('PUBLISHER');
+    const dev = await createUser('DEVELOPER');
+    await createApi(publisher.user.id, { name: 'Shipping Tracker', tags: ['logistics'] });
+    await createApi(publisher.user.id, {
+      name: 'Courier Rates',
+      description: 'Compare logistics prices across couriers.',
+      tags: ['pricing'],
+    });
+
+    const withHash = await authed(app, dev.token).get(
+      `/api/v1/apis?q=${encodeURIComponent('#logi')}`
+    );
+    const withoutHash = await authed(app, dev.token).get('/api/v1/apis?q=logi');
+    const hashOnly = await authed(app, dev.token).get(`/api/v1/apis?q=${encodeURIComponent('#')}`);
+
+    // With #: only the API tagged logistics, not the one mentioning it in its description.
+    expect(withHash.body.data.map((a: { name: string }) => a.name)).toEqual(['Shipping Tracker']);
+    expect(withoutHash.body.meta.total).toBe(2);
+    // A lone # is no search at all.
+    expect(hashOnly.body.meta.total).toBe(2);
+  });
+
   it('treats regex characters in the search as plain text', async () => {
     const dev = await createUser('DEVELOPER');
 

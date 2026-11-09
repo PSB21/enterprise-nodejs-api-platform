@@ -90,7 +90,7 @@ export default function ApisPage() {
           <Input
             type="search"
             aria-label="Search APIs"
-            placeholder="Search by name, tag or description, e.g. logi"
+            placeholder="Search by name, tag or description, or #tag"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />

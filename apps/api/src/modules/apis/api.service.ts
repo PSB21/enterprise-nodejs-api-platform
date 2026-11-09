@@ -80,7 +80,12 @@ export async function listApis(query: ListApisQuery, viewer: Viewer) {
   if (query.tags.length) conditions.push({ tags: trusted({ $in: query.tags }) });
   if (query.mine) conditions.push({ ownerId: viewer.id });
 
-  if (!query.q) {
+  // A term starting with # searches tags only, matching how tags are shown: "#logi" finds
+  // APIs tagged "logistics". Tags are stored without the #, so it is removed first.
+  const tagsOnly = query.q?.startsWith('#') ?? false;
+  const term = (query.q ?? '').replace(/^#+/, '').trim();
+
+  if (!term) {
     const filter = { $and: conditions };
     const [apis, total] = await Promise.all([
       ApiModel.find(filter).sort({ createdAt: -1 }).skip(toSkip(query)).limit(query.limit),
@@ -93,17 +98,22 @@ export async function listApis(query: ListApisQuery, viewer: Viewer) {
   // matched as plain text. Trade-off: a pattern like this cannot use an index, so every API the
   // user can see is checked. Fine for a catalog of this size; a large one would use a search
   // engine such as Atlas Search.
-  const pattern = escapeRegex(query.q);
+  const pattern = escapeRegex(term);
   const matches = (field: string) => ({
     $regexMatch: { input: field, regex: pattern, options: 'i' },
   });
-  conditions.push({
-    $or: [
-      { name: { $regex: pattern, $options: 'i' } },
-      { tags: { $regex: pattern, $options: 'i' } },
-      { description: { $regex: pattern, $options: 'i' } },
-    ],
-  });
+  const tagMatch = { tags: { $regex: pattern, $options: 'i' } };
+  conditions.push(
+    tagsOnly
+      ? tagMatch
+      : {
+          $or: [
+            { name: { $regex: pattern, $options: 'i' } },
+            tagMatch,
+            { description: { $regex: pattern, $options: 'i' } },
+          ],
+        }
+  );
 
   const [result] = await ApiModel.aggregate<{ data: ApiFields[]; total: { n: number }[] }>([
     { $match: { $and: conditions } },

@@ -13,7 +13,7 @@ documentRoute({
   summary: 'Browse the API catalog',
   description:
     'Developers see published APIs. Publishers also see their own drafts. Admins see everything. ' +
-    '`q` matches part of a name, tag or description, ignoring case, ranked name first. `tags` takes a comma-separated list and ' +
+    '`q` matches part of a name, tag or description, ignoring case, ranked name first; start it with # (e.g. #logi) to search tags only. `tags` takes a comma-separated list and ' +
     'matches APIs with any of them. All filters combine.',
   auth: true,
   query: listApisQuery,
