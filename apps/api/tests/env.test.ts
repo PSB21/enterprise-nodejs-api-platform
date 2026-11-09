@@ -29,6 +29,8 @@ describe('parseEnv', () => {
       TRUST_PROXY_HOPS: 0,
       CACHE_ENABLED: true,
       RATE_LIMIT_ENABLED: true,
+      EVENT_BUS: 'inline',
+      RUN_WORKER_IN_API: false,
     });
   });
 
@@ -51,6 +53,19 @@ describe('parseEnv', () => {
     ['JWT_SECRET', 'too-short'],
   ])('rejects an invalid %s', (name, value) => {
     expect(errorMessage({ ...base, [name]: value })).toBe(`Invalid environment variables: ${name}`);
+  });
+
+  it('treats empty optional URLs, as copied from .env.example, as not set', () => {
+    const env = parseEnv({ ...base, REDIS_URL: '', AMQP_URL: '' });
+
+    expect(env.REDIS_URL).toBeUndefined();
+    expect(env.AMQP_URL).toBeUndefined();
+  });
+
+  it('requires AMQP_URL when events go to RabbitMQ', () => {
+    expect(errorMessage({ ...base, EVENT_BUS: 'rabbitmq' })).toBe(
+      'Invalid environment variables: AMQP_URL'
+    );
   });
 
   it('names the invalid variable without showing its value', () => {

@@ -2,6 +2,7 @@ import { trusted } from 'mongoose';
 
 import { env } from '../../config/env';
 import { AppError } from '../../errors/app-error';
+import { publishEvent } from '../../events/bus';
 import { cached, invalidate } from '../../lib/cache';
 import { sha256 } from '../../lib/hash';
 import { getRateLimiter, type Decision } from '../../lib/rate-limiter';
@@ -138,10 +139,23 @@ export async function enforcePlan(key: GatewayKey, api: GatewayApi): Promise<Dec
         `Monthly quota of ${plan.monthlyQuota} requests used up`
       );
     }
+
+    // Warn the developer once, on the exact request that reaches 80% of the quota.
+    const used = quota.limit - quota.remaining;
+    if (used === Math.ceil(plan.monthlyQuota * QUOTA_WARNING_RATIO)) {
+      await publishEvent({
+        type: 'usage.quota-warning',
+        actorId: null,
+        subject: { type: 'user', id: key.developerId },
+        data: { apiId: api.id, apiSlug: api.slug, keyId: key.id, used, quota: plan.monthlyQuota },
+      });
+    }
   }
 
   return minute;
 }
+
+const QUOTA_WARNING_RATIO = 0.8;
 
 /**
  * Builds the upstream URL from the API's base URL and the rest of the gateway path.

@@ -1,5 +1,6 @@
 import { createApp } from '../src/app';
 import { prisma } from '../src/db/prisma';
+import { drainEvents } from '../src/events/bus';
 import { AccessRequestModel } from '../src/modules/access-requests/access-request.model';
 import { NotificationModel } from '../src/modules/notifications/notification.model';
 import { createApi } from './helpers/apis';
@@ -111,6 +112,8 @@ describe('reviewing requests', () => {
   it('saves nothing if the notification cannot be written (transaction rollback)', async () => {
     const { publisher, dev, api } = await scenario();
     const created = await requestAccess(dev.token, api.slug);
+    // Let the "request created" event finish first: it also writes a notification.
+    await drainEvents();
     const logged = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     const failing = jest
       .spyOn(NotificationModel, 'create')
@@ -139,7 +142,8 @@ describe('reviewing requests', () => {
     ]);
 
     expect(results.filter((r) => r.status === 200)).toHaveLength(1);
-    expect(await NotificationModel.countDocuments()).toBe(1);
+    // The developer gets exactly one decision (the publisher's "new request" note is separate).
+    expect(await NotificationModel.countDocuments({ userId: dev.user.id })).toBe(1);
   });
 
   it('cannot decide a request twice', async () => {

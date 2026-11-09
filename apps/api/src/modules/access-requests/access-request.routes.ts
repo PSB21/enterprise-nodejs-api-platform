@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { publishEvent } from '../../events/bus';
 import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
 import { revokeAccessSchema } from '../api-keys/api-key.schemas';
@@ -20,14 +21,39 @@ accessRequestsRouter.use(authenticate);
 
 async function present(request: AccessRequestDocument) {
   const [data] = await service.presentRequests([request]);
-  return data;
+  return data!;
+}
+
+/** Records a decision as an event, after it has been committed. */
+function decided(request: AccessRequestDocument, actorId: string, note?: string) {
+  return publishEvent({
+    type: `access-request.${request.status}` as 'access-request.approved',
+    actorId,
+    subject: { type: 'access-request', id: request.id as string },
+    data: { apiId: String(request.apiId), developerId: request.developerId, note: note ?? null },
+  });
 }
 
 accessRequestsRouter.post('/', authorize('DEVELOPER'), async (req, res) => {
   const input = createAccessRequestSchema.parse(req.body);
-  const { request } = await service.createAccessRequest(input, req.user!);
+  const { request, api } = await service.createAccessRequest(input, req.user!);
+  const data = await present(request);
 
-  res.status(201).json({ success: true, data: await present(request) });
+  // Tells the API's owner there is something to review (handled by the event worker).
+  await publishEvent({
+    type: 'access-request.created',
+    actorId: req.user!.id,
+    subject: { type: 'access-request', id: data.id },
+    data: {
+      apiId: api.id,
+      apiName: api.name,
+      apiOwnerId: request.apiOwnerId,
+      planName: request.planName,
+      developerName: data.developer?.name ?? 'A developer',
+    },
+  });
+
+  res.status(201).json({ success: true, data });
 });
 
 accessRequestsRouter.get('/', async (req, res) => {
@@ -48,6 +74,7 @@ accessRequestsRouter.post('/:id/approve', authorize('PUBLISHER', 'ADMIN'), async
   const { id } = accessRequestIdParams.parse(req.params);
   const { note } = approveSchema.parse(req.body ?? {});
   const request = await service.transition(id, 'pending', 'approved', req.user!, note);
+  await decided(request, req.user!.id, note);
 
   res.json({ success: true, data: await present(request) });
 });
@@ -56,6 +83,7 @@ accessRequestsRouter.post('/:id/reject', authorize('PUBLISHER', 'ADMIN'), async 
   const { id } = accessRequestIdParams.parse(req.params);
   const { note } = rejectSchema.parse(req.body);
   const request = await service.transition(id, 'pending', 'rejected', req.user!, note);
+  await decided(request, req.user!.id, note);
 
   res.json({ success: true, data: await present(request) });
 });
@@ -78,6 +106,7 @@ accessRequestsRouter.post('/:id/revoke', authorize('PUBLISHER', 'ADMIN'), async 
   // Only after the transaction has committed: clearing the cache earlier could let the
   // gateway re-cache a key that a rolled-back transaction left active.
   await invalidateKeysForRequest(request._id);
+  await decided(request, req.user!.id, note);
 
   res.json({ success: true, data: await present(request) });
 });

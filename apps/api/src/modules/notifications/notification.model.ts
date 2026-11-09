@@ -10,12 +10,19 @@ const notificationSchema = new Schema(
     message: { type: String, required: true },
     data: { type: Schema.Types.Mixed, default: {} },
     readAt: { type: Date, default: null },
+    // Set when the notification was created by an event, so a repeated event is ignored.
+    eventId: { type: String },
   },
   { timestamps: true }
 );
 
 // A user's newest notifications first.
 notificationSchema.index({ userId: 1, createdAt: -1 });
+// Unique only where eventId exists: notifications written directly have none.
+notificationSchema.index(
+  { eventId: 1 },
+  { unique: true, partialFilterExpression: { eventId: { $type: 'string' } } }
+);
 // TTL index: MongoDB deletes notifications 90 days after they were created.
 notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: NINETY_DAYS });
 

@@ -47,3 +47,23 @@ model RefreshToken {
   @@index([userId])
   @@map("refresh_tokens")
 }
+
+/// An append-only record of who did what, written by the event worker. There is deliberately
+/// no foreign key to users: the record must survive even if the account is deleted.
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  // The event's own id. Unique, so handling the same event twice records it once.
+  eventId     String   @unique @map("event_id") @db.Uuid
+  type        String   @db.VarChar(100)
+  actorId     String?  @map("actor_id") @db.Uuid
+  subjectType String   @map("subject_type") @db.VarChar(50)
+  subjectId   String   @map("subject_id") @db.VarChar(100)
+  data        Json     @default("{}")
+  occurredAt  DateTime @map("occurred_at") @db.Timestamptz
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([type, occurredAt(sort: Desc)])
+  @@index([subjectType, subjectId])
+  @@index([occurredAt(sort: Desc)])
+  @@map("audit_logs")
+}

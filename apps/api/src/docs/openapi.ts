@@ -12,6 +12,7 @@ import '../modules/notifications/notification.docs';
 import '../modules/api-keys/api-key.docs';
 import '../modules/gateway/gateway.docs';
 import '../modules/analytics/analytics.docs';
+import '../modules/audit/audit.docs';
 import '../modules/mock-upstream/mock-orders.docs';
 import '../routes/health.docs';
 

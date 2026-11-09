@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import { prisma } from '../../db/prisma';
+import { publishEvent } from '../../events/bus';
 import { AppError } from '../../errors/app-error';
 import { pageMeta, toSkip } from '../../lib/pagination';
 import { authenticate } from '../../middleware/authenticate';
@@ -51,6 +52,12 @@ usersRouter.patch('/:id/role', async (req, res) => {
   // their next login, within 15 minutes at most, instead of whenever their session ends.
   if (existing.role !== role) {
     await revokeAllForUser(id);
+    await publishEvent({
+      type: 'user.role-changed',
+      actorId: req.user!.id,
+      subject: { type: 'user', id },
+      data: { from: existing.role, to: role },
+    });
   }
 
   res.json({ success: true, data: { user: toPublicUser(user) } });
