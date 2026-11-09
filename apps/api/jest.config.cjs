@@ -4,6 +4,7 @@ module.exports = {
   roots: ['<rootDir>/tests'],
   testMatch: ['**/*.test.ts'],
   globalSetup: '<rootDir>/tests/global-setup.ts',
+  globalTeardown: '<rootDir>/tests/global-teardown.ts',
   setupFiles: ['<rootDir>/tests/setup-env.ts'],
   // Tests share one database, so test files run one at a time to avoid deleting each other's data.
   maxWorkers: 1,

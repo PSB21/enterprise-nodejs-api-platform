@@ -2,6 +2,7 @@ import { parseEnv } from '../src/config/env';
 
 const base = {
   DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
+  MONGODB_URI: 'mongodb://localhost:27017/ams',
   JWT_SECRET: 'x'.repeat(32),
 };
 
@@ -23,6 +24,7 @@ describe('parseEnv', () => {
       CORS_ORIGINS: ['http://localhost:3000'],
       ACCESS_TOKEN_TTL_SECONDS: 900,
       REFRESH_TOKEN_TTL_DAYS: 7,
+      UPSTREAM_ALLOWED_HOSTS: ['localhost', '127.0.0.1'],
     });
   });
 
@@ -33,20 +35,18 @@ describe('parseEnv', () => {
     expect(env.CORS_ORIGINS).toEqual(['http://a.test', 'http://b.test']);
   });
 
-  it('requires DATABASE_URL and JWT_SECRET', () => {
-    expect(errorMessage({})).toBe('Invalid environment variables: DATABASE_URL, JWT_SECRET');
-  });
-
-  it('rejects a DATABASE_URL that is not Postgres', () => {
-    expect(errorMessage({ ...base, DATABASE_URL: 'mysql://user:pass@localhost/db' })).toBe(
-      'Invalid environment variables: DATABASE_URL'
+  it('requires the database URLs and JWT_SECRET', () => {
+    expect(errorMessage({})).toBe(
+      'Invalid environment variables: DATABASE_URL, MONGODB_URI, JWT_SECRET'
     );
   });
 
-  it('rejects a JWT_SECRET shorter than 32 characters', () => {
-    expect(errorMessage({ ...base, JWT_SECRET: 'too-short' })).toBe(
-      'Invalid environment variables: JWT_SECRET'
-    );
+  it.each([
+    ['DATABASE_URL', 'mysql://user:pass@localhost/db'],
+    ['MONGODB_URI', 'postgresql://user:pass@localhost/db'],
+    ['JWT_SECRET', 'too-short'],
+  ])('rejects an invalid %s', (name, value) => {
+    expect(errorMessage({ ...base, [name]: value })).toBe(`Invalid environment variables: ${name}`);
   });
 
   it('names the invalid variable without showing its value', () => {

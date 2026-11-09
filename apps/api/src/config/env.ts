@@ -1,19 +1,24 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
-const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().int().min(1).max(65535).default(5000),
-  CORS_ORIGINS: z
+const commaList = (fallback: string) =>
+  z
     .string()
-    .default('http://localhost:3000')
+    .default(fallback)
     .transform((value) =>
       value
         .split(',')
-        .map((origin) => origin.trim())
+        .map((item) => item.trim())
         .filter(Boolean)
-    ),
+    );
+
+const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  PORT: z.coerce.number().int().min(1).max(65535).default(5000),
+  // Browser origins allowed to call the API.
+  CORS_ORIGINS: commaList('http://localhost:3000'),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+  MONGODB_URI: z.url({ protocol: /^mongodb(\+srv)?$/ }),
   // Signs access tokens. Anyone who knows it can forge a login, so it must be long and random.
   JWT_SECRET: z.string().min(32),
   ACCESS_TOKEN_TTL_SECONDS: z.coerce
@@ -22,6 +27,9 @@ const envSchema = z.object({
     .positive()
     .default(15 * 60),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(7),
+  // Hosts the gateway may forward requests to. Without this list, anyone allowed to publish an
+  // API could make the server call internal addresses (server-side request forgery).
+  UPSTREAM_ALLOWED_HOSTS: commaList('localhost,127.0.0.1'),
 });
 
 export type Env = z.infer<typeof envSchema>;
