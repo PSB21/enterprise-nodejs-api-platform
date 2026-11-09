@@ -1,6 +1,7 @@
 import type { Router } from 'express';
 
 import { accessRequestsRouter } from '../modules/access-requests/access-request.routes';
+import { analyticsRouter } from '../modules/analytics/analytics.routes';
 import { apisRouter } from '../modules/apis/api.routes';
 import { apiKeysRouter } from '../modules/api-keys/api-key.routes';
 import { authRouter } from '../modules/auth/auth.routes';
@@ -27,6 +28,7 @@ export const apiRoutes: Mount[] = [
   { path: '/api/v1/access-requests', router: accessRequestsRouter },
   { path: '/api/v1/notifications', router: notificationsRouter },
   { path: '/api/v1/api-keys', router: apiKeysRouter },
+  { path: '/api/v1/analytics', router: analyticsRouter },
   { path: '/mock/orders', router: mockOrdersRouter },
 ];
 

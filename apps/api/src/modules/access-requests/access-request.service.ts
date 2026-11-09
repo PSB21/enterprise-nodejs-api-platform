@@ -170,7 +170,7 @@ export async function transition(
         },
         $push: { history: { status: to, by: viewer.id, note, at: now } },
       },
-      { new: true, session }
+      { returnDocument: 'after', session }
     );
 
     if (!updated) {
