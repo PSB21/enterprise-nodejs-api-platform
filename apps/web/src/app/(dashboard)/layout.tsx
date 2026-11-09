@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, type ReactNode } from 'react';
 
 import { Header } from '@/components/header';
+import { NotificationsMenu } from '@/components/notifications-menu';
 import { Spinner } from '@/components/ui';
 import { useAppSelector } from '@/store';
 
@@ -32,7 +33,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <>
-      <Header />
+      <Header notifications={<NotificationsMenu />} />
       <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
     </>
   );
