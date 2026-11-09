@@ -1,6 +1,12 @@
 import { makeStore } from './index';
 import { sessionEnded, sessionStarted } from './auth-slice';
-import { mineToggled, pageChanged, searchChanged, tagChanged } from './catalog-slice';
+import {
+  mineToggled,
+  pageChanged,
+  searchChanged,
+  statusChanged,
+  tagToggled,
+} from './catalog-slice';
 
 const user = {
   id: 'u1',
@@ -31,12 +37,30 @@ describe('catalog slice', () => {
     const store = makeStore();
     store.dispatch(sessionStarted({ accessToken: 'jwt', user }));
     store.dispatch(searchChanged('weather'));
-    store.dispatch(tagChanged('maps'));
+    store.dispatch(tagToggled('maps'));
+    store.dispatch(statusChanged('draft'));
     store.dispatch(mineToggled());
 
     store.dispatch(sessionEnded());
 
-    expect(store.getState().catalog).toEqual({ q: '', tag: '', page: 1, mine: false });
+    expect(store.getState().catalog).toEqual({
+      q: '',
+      tags: [],
+      status: '',
+      page: 1,
+      mine: false,
+    });
+  });
+
+  it('allows several tags at once, and clicking a selected tag removes it', () => {
+    const store = makeStore();
+
+    store.dispatch(tagToggled('geo'));
+    store.dispatch(tagToggled('maps'));
+    expect(store.getState().catalog.tags).toEqual(['geo', 'maps']);
+
+    store.dispatch(tagToggled('geo'));
+    expect(store.getState().catalog.tags).toEqual(['maps']);
   });
 
   it('goes back to page 1 when the search changes', () => {

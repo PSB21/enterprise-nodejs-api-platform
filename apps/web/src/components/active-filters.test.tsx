@@ -28,19 +28,16 @@ describe('ActiveFilters', () => {
     expect(removeTag).toHaveBeenCalled();
   });
 
-  it('offers "Clear all" when more than one filter is applied', async () => {
+  it('offers "Clear filters" even when only one filter is applied', async () => {
     const onClearAll = jest.fn();
     render(
       <ActiveFilters
-        filters={[
-          { label: 'Tag: #geo', onRemove: jest.fn() },
-          { label: 'Only my APIs', onRemove: jest.fn() },
-        ]}
+        filters={[{ label: 'Tag: #geo', onRemove: jest.fn() }]}
         onClearAll={onClearAll}
       />
     );
 
-    await userEvent.click(screen.getByRole('button', { name: 'Clear all' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
 
     expect(onClearAll).toHaveBeenCalled();
   });

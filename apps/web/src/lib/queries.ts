@@ -7,6 +7,7 @@ import type {
   AccessRequest,
   Api,
   ApiKey,
+  ApiStatus,
   ApiUsageSummary,
   AppNotification,
   MyUsage,
@@ -33,7 +34,8 @@ const page = <T>(promise: Promise<{ data: Paged<T> }>) => promise.then((r) => r.
 
 export interface ApiFilters {
   q?: string;
-  tag?: string;
+  tags?: string[];
+  status?: ApiStatus | '';
   page?: number;
   mine?: boolean;
   limit?: number;
@@ -47,7 +49,8 @@ export function useApis(filters: ApiFilters) {
         api.get('/apis', {
           params: {
             q: filters.q || undefined,
-            tag: filters.tag || undefined,
+            tags: filters.tags?.length ? filters.tags.join(',') : undefined,
+            status: filters.status || undefined,
             page: filters.page,
             limit: filters.limit ?? 12,
             mine: filters.mine ? 'true' : undefined,
@@ -56,6 +59,14 @@ export function useApis(filters: ApiFilters) {
       ),
     // Keep showing the previous page while the next one loads, instead of a spinner.
     placeholderData: keepPreviousData,
+  });
+}
+
+/** Tags used by the APIs this user can see, most used first, for the filter bar. */
+export function useApiTags() {
+  return useQuery({
+    queryKey: [...keys.apis, 'tags'],
+    queryFn: () => data<{ tag: string; count: number }[]>(api.get('/apis/tags')),
   });
 }
 

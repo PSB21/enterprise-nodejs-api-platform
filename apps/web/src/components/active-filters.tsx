@@ -34,15 +34,13 @@ export function ActiveFilters({
           </button>
         </span>
       ))}
-      {filters.length > 1 && (
-        <button
-          type="button"
-          onClick={onClearAll}
-          className="text-slate-600 underline-offset-2 hover:underline"
-        >
-          Clear all
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={onClearAll}
+        className="font-medium text-slate-600 underline-offset-2 hover:text-slate-900 hover:underline"
+      >
+        Clear filters
+      </button>
     </div>
   );
 }
