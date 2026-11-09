@@ -1,6 +1,6 @@
 import { makeStore } from './index';
 import { sessionEnded, sessionStarted } from './auth-slice';
-import { pageChanged, searchChanged } from './catalog-slice';
+import { mineToggled, pageChanged, searchChanged, tagChanged } from './catalog-slice';
 
 const user = {
   id: 'u1',
@@ -27,6 +27,18 @@ describe('auth slice', () => {
 });
 
 describe('catalog slice', () => {
+  it('clears the filters when the user logs out', () => {
+    const store = makeStore();
+    store.dispatch(sessionStarted({ accessToken: 'jwt', user }));
+    store.dispatch(searchChanged('weather'));
+    store.dispatch(tagChanged('maps'));
+    store.dispatch(mineToggled());
+
+    store.dispatch(sessionEnded());
+
+    expect(store.getState().catalog).toEqual({ q: '', tag: '', page: 1, mine: false });
+  });
+
   it('goes back to page 1 when the search changes', () => {
     const store = makeStore();
     store.dispatch(pageChanged(3));

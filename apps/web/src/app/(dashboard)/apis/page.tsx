@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 
+import { ActiveFilters, type ActiveFilter } from '@/components/active-filters';
 import { StatusBadge } from '@/components/status-badge';
 import { Alert, Button, EmptyState, Input, PageHeader, Pagination, Spinner } from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
@@ -36,7 +37,23 @@ export default function ApisPage() {
     dispatch(searchChanged(search.trim()));
   }
 
-  const filtered = Boolean(filters.q || filters.tag || filters.mine);
+  const active: ActiveFilter[] = [];
+  if (filters.q) {
+    active.push({
+      label: `Search: "${filters.q}"`,
+      onRemove: () => {
+        setSearch('');
+        dispatch(searchChanged(''));
+      },
+    });
+  }
+  if (filters.tag) {
+    active.push({ label: `Tag: #${filters.tag}`, onRemove: () => dispatch(tagChanged('')) });
+  }
+  if (filters.mine) {
+    active.push({ label: 'Only my APIs', onRemove: () => dispatch(mineToggled()) });
+  }
+  const filtered = active.length > 0;
 
   return (
     <>
@@ -71,18 +88,9 @@ export default function ApisPage() {
             Only my APIs
           </label>
         )}
-        {filtered && (
-          <Button type="button" variant="ghost" onClick={clearFilters}>
-            Clear filters
-          </Button>
-        )}
       </form>
 
-      {filters.tag && (
-        <p className="mb-4 text-sm text-slate-600">
-          Tag: <span className="font-medium">{filters.tag}</span>
-        </p>
-      )}
+      <ActiveFilters filters={active} onClearAll={clearFilters} />
 
       {error && <Alert>{errorMessage(error)}</Alert>}
       {isLoading && <Spinner label="Loading APIs" />}
@@ -116,16 +124,22 @@ export default function ApisPage() {
                 </p>
                 {item.tags.length > 0 && (
                   <div className="mt-4 flex flex-wrap gap-1.5">
-                    {item.tags.map((tag) => (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => dispatch(tagChanged(tag))}
-                        className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
-                      >
-                        #{tag}
-                      </button>
-                    ))}
+                    {item.tags.map((tag) => {
+                      const selected = filters.tag === tag;
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          aria-pressed={selected}
+                          title={selected ? 'Remove this tag filter' : `Show only #${tag} APIs`}
+                          // Clicking the selected tag again removes the filter.
+                          onClick={() => dispatch(tagChanged(selected ? '' : tag))}
+                          className={`rounded-full px-2 py-0.5 text-xs ${selected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700'}`}
+                        >
+                          #{tag}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </article>
