@@ -1,3 +1,24 @@
-// Runs before every test file. dotenv never overwrites a variable that is already set, so this
-// placeholder guarantees tests can't reach the real database through apps/api/.env.
-process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
+// Runs before every test file, before any app code is imported.
+//
+// dotenv never overwrites a variable that is already set, so whatever is set here wins over
+// apps/api/.env. That is how the tests are kept away from the real database.
+import fs from 'node:fs';
+import path from 'node:path';
+
+import dotenv from 'dotenv';
+
+const envFile = path.join(__dirname, '..', '.env');
+const local = fs.existsSync(envFile) ? dotenv.parse(fs.readFileSync(envFile)) : {};
+
+// In CI these come from the environment; on a laptop they come from apps/api/.env.
+const testUrl = process.env.TEST_DATABASE_URL ?? local.TEST_DATABASE_URL;
+const realUrl = process.env.DATABASE_URL ?? local.DATABASE_URL;
+
+if (testUrl && realUrl && new URL(testUrl).host === new URL(realUrl).host) {
+  throw new Error('TEST_DATABASE_URL points at the main database. Tests delete data, so stopping.');
+}
+
+process.env.NODE_ENV = 'test';
+process.env.DATABASE_URL = testUrl ?? 'postgresql://test:test@localhost:5432/test';
+process.env.JWT_SECRET = 'test-secret-that-is-at-least-32-characters-long';
+process.env.HAS_TEST_DATABASE = testUrl ? 'true' : 'false';

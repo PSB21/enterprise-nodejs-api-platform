@@ -1,4 +1,5 @@
 import type { ErrorRequestHandler } from 'express';
+import { ZodError } from 'zod';
 
 import { AppError } from '../errors/app-error';
 
@@ -22,6 +23,22 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next
     res.status(err.statusCode).json({
       success: false,
       error: { code: err.code, message: err.message, details: err.details },
+    });
+    return;
+  }
+
+  // Thrown when a handler parses its input with a Zod schema and the input does not match.
+  if (err instanceof ZodError) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'The request is invalid',
+        details: err.issues.map((issue) => ({
+          path: issue.path.join('.'),
+          message: issue.message,
+        })),
+      },
     });
     return;
   }

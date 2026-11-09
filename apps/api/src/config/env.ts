@@ -14,6 +14,13 @@ const envSchema = z.object({
         .filter(Boolean)
     ),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+  // Signs access tokens. Anyone who knows it can forge a login, so it must be long and random.
+  JWT_SECRET: z.string().min(32),
+  ACCESS_TOKEN_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(15 * 60),
 });
 
 export type Env = z.infer<typeof envSchema>;
