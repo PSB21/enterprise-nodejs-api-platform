@@ -140,10 +140,16 @@ export default function ApisPage() {
           >
             {data.data.map((item) => (
               <li key={item.id}>
-                <article className="flex h-full flex-col rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-300">
+                {/* The whole card opens the API: the title link's ::after covers the card
+                    (a "stretched link"), so there is still one real link for keyboards and
+                    screen readers. Tag buttons sit above it so they stay clickable. */}
+                <article className="group relative flex h-full flex-col rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-300 hover:shadow-md focus-within:ring-2 focus-within:ring-indigo-500">
                   <div className="flex items-start justify-between gap-2">
                     <h2 className="font-semibold">
-                      <Link href={`/apis/${item.slug}`} className="hover:text-indigo-600">
+                      <Link
+                        href={`/apis/${item.slug}`}
+                        className="after:absolute after:inset-0 after:rounded-lg after:content-[''] focus:outline-none group-hover:text-indigo-600"
+                      >
                         {item.name}
                       </Link>
                     </h2>
@@ -156,7 +162,7 @@ export default function ApisPage() {
                     {item.description}
                   </p>
                   {item.tags.length > 0 && (
-                    <div className="mt-4 flex flex-wrap gap-1.5">
+                    <div className="relative z-10 mt-4 flex flex-wrap gap-1.5">
                       {item.tags.map((tag) => {
                         const selected = filters.tags.includes(tag);
                         return (
