@@ -4,6 +4,7 @@ import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
 import { revokeAccessSchema } from '../api-keys/api-key.schemas';
 import { revokeKeysForRequest } from '../api-keys/api-key.service';
+import type { AccessRequestDocument } from './access-request.model';
 import {
   accessRequestIdParams,
   approveSchema,
@@ -17,11 +18,16 @@ export const accessRequestsRouter = Router();
 
 accessRequestsRouter.use(authenticate);
 
+async function present(request: AccessRequestDocument) {
+  const [data] = await service.presentRequests([request]);
+  return data;
+}
+
 accessRequestsRouter.post('/', authorize('DEVELOPER'), async (req, res) => {
   const input = createAccessRequestSchema.parse(req.body);
-  const { request, api } = await service.createAccessRequest(input, req.user!);
+  const { request } = await service.createAccessRequest(input, req.user!);
 
-  res.status(201).json({ success: true, data: service.toAccessRequestResponse(request, api) });
+  res.status(201).json({ success: true, data: await present(request) });
 });
 
 accessRequestsRouter.get('/', async (req, res) => {
@@ -34,12 +40,8 @@ accessRequestsRouter.get('/', async (req, res) => {
 accessRequestsRouter.get('/:id', async (req, res) => {
   const { id } = accessRequestIdParams.parse(req.params);
   const request = await service.getAccessRequest(id, req.user!);
-  const apis = await service.apiSummaries([request.apiId]);
 
-  res.json({
-    success: true,
-    data: service.toAccessRequestResponse(request, apis.get(String(request.apiId))),
-  });
+  res.json({ success: true, data: await present(request) });
 });
 
 accessRequestsRouter.post('/:id/approve', authorize('PUBLISHER', 'ADMIN'), async (req, res) => {
@@ -47,7 +49,7 @@ accessRequestsRouter.post('/:id/approve', authorize('PUBLISHER', 'ADMIN'), async
   const { note } = approveSchema.parse(req.body ?? {});
   const request = await service.transition(id, 'pending', 'approved', req.user!, note);
 
-  res.json({ success: true, data: service.toAccessRequestResponse(request) });
+  res.json({ success: true, data: await present(request) });
 });
 
 accessRequestsRouter.post('/:id/reject', authorize('PUBLISHER', 'ADMIN'), async (req, res) => {
@@ -55,7 +57,7 @@ accessRequestsRouter.post('/:id/reject', authorize('PUBLISHER', 'ADMIN'), async 
   const { note } = rejectSchema.parse(req.body);
   const request = await service.transition(id, 'pending', 'rejected', req.user!, note);
 
-  res.json({ success: true, data: service.toAccessRequestResponse(request) });
+  res.json({ success: true, data: await present(request) });
 });
 
 /**
@@ -74,5 +76,5 @@ accessRequestsRouter.post('/:id/revoke', authorize('PUBLISHER', 'ADMIN'), async 
     (updated, session) => revokeKeysForRequest(updated._id, session)
   );
 
-  res.json({ success: true, data: service.toAccessRequestResponse(request) });
+  res.json({ success: true, data: await present(request) });
 });

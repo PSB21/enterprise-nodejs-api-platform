@@ -1,5 +1,6 @@
 import mongoose, { mongo, trusted, type QueryFilter } from 'mongoose';
 
+import { prisma } from '../../db/prisma';
 import { AppError } from '../../errors/app-error';
 import { pageMeta, toSkip } from '../../lib/pagination';
 import { ApiModel } from '../apis/api.model';
@@ -20,14 +21,23 @@ export function requestsVisibleTo(viewer: Viewer): QueryFilter<AccessRequestFiel
   return { developerId: viewer.id };
 }
 
+interface DeveloperSummary {
+  id: string;
+  name: string;
+  email: string;
+}
+
 export function toAccessRequestResponse(
   request: AccessRequestDocument,
-  api?: { id: string; name: string; slug: string }
+  api?: { id: string; name: string; slug: string },
+  developer?: DeveloperSummary
 ) {
   return {
     id: request.id as string,
     api: api ?? { id: String(request.apiId) },
     developerId: request.developerId,
+    // From Postgres. Reviewers need to know who is asking, not just an id.
+    developer: developer ?? null,
     planName: request.planName,
     useCase: request.useCase,
     status: request.status,
@@ -53,6 +63,33 @@ export async function apiSummaries(apiIds: unknown[]) {
   const apis = await ApiModel.find({ _id: trusted({ $in: ids }) }).select('name slug');
   return new Map(
     apis.map((a) => [String(a._id), { id: String(a._id), name: a.name, slug: a.slug }])
+  );
+}
+
+/** Looks up developers' names and emails in Postgres with one query. */
+async function developerSummaries(ids: string[]) {
+  const unique = [...new Set(ids)];
+  const users = unique.length
+    ? await prisma.user.findMany({
+        where: { id: { in: unique } },
+        select: { id: true, name: true, email: true },
+      })
+    : [];
+  return new Map(users.map((u) => [u.id, u]));
+}
+
+/**
+ * Turns requests into API responses, adding API and developer details. Each lookup is one
+ * query for the whole list, rather than one query per request.
+ */
+export async function presentRequests(requests: AccessRequestDocument[]) {
+  const [apis, developers] = await Promise.all([
+    apiSummaries(requests.map((r) => r.apiId)),
+    developerSummaries(requests.map((r) => r.developerId)),
+  ]);
+
+  return requests.map((r) =>
+    toAccessRequestResponse(r, apis.get(String(r.apiId)), developers.get(r.developerId))
   );
 }
 
@@ -102,12 +139,7 @@ export async function listAccessRequests(query: ListAccessRequestsQuery, viewer:
     AccessRequestModel.find(filter).sort({ createdAt: -1 }).skip(toSkip(query)).limit(query.limit),
     AccessRequestModel.countDocuments(filter),
   ]);
-  const apis = await apiSummaries(requests.map((r) => r.apiId));
-
-  return {
-    data: requests.map((r) => toAccessRequestResponse(r, apis.get(String(r.apiId)))),
-    meta: pageMeta(query, total),
-  };
+  return { data: await presentRequests(requests), meta: pageMeta(query, total) };
 }
 
 export async function getAccessRequest(id: string, viewer: Viewer) {

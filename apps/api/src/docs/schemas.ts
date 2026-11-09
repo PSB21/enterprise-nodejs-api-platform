@@ -45,6 +45,10 @@ export const accessRequestResponseSchema = z.object({
   id: z.string(),
   api: z.object({ id: z.string(), name: z.string().optional(), slug: z.string().optional() }),
   developerId: z.uuid(),
+  developer: z
+    .object({ id: z.uuid(), name: z.string(), email: z.email() })
+    .nullable()
+    .describe('Null if the account no longer exists'),
   planName: z.string(),
   useCase: z.string(),
   status: z.enum(ACCESS_REQUEST_STATUSES),

@@ -209,6 +209,11 @@ describe('GET /api/v1/access-requests', () => {
     expect(asPublisher.body.data.map((r: { api: { id: string } }) => r.api.id)).toEqual([api.id]);
     expect(asAdmin.body.meta.total).toBe(2);
     expect(asDev.body.data[0].api.name).toBe(api.name);
+    expect(asPublisher.body.data[0].developer).toEqual({
+      id: dev.user.id,
+      name: dev.user.name,
+      email: dev.user.email,
+    });
   });
 
   it('filters by status', async () => {
