@@ -10,6 +10,8 @@ import '../modules/apis/api.docs';
 import '../modules/access-requests/access-request.docs';
 import '../modules/notifications/notification.docs';
 import '../modules/api-keys/api-key.docs';
+import '../modules/gateway/gateway.docs';
+import '../modules/mock-upstream/mock-orders.docs';
 import '../routes/health.docs';
 
 type JsonSchema = Record<string, unknown>;
@@ -99,9 +101,12 @@ function operation(route: RouteDoc) {
   };
 }
 
-/** Express writes path parameters as `:id`; OpenAPI writes them as `{id}`. */
+/**
+ * Express writes path parameters as `:id` and an optional wildcard as `{/*path}`;
+ * OpenAPI writes both as `{name}`.
+ */
 export function toOpenApiPath(path: string) {
-  return path.replace(/:(\w+)/g, '{$1}');
+  return path.replace(/\{\/\*(\w+)\}/g, '/{$1}').replace(/:(\w+)/g, '{$1}');
 }
 
 export function buildOpenApiDocument() {

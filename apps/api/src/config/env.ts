@@ -30,6 +30,10 @@ const envSchema = z.object({
   // Hosts the gateway may forward requests to. Without this list, anyone allowed to publish an
   // API could make the server call internal addresses (server-side request forgery).
   UPSTREAM_ALLOWED_HOSTS: commaList('localhost,127.0.0.1'),
+  // How long the gateway waits for an upstream API before returning 504.
+  GATEWAY_TIMEOUT_MS: z.coerce.number().int().min(100).max(60_000).default(10_000),
+  // Number of proxies in front of the app (1 on most hosting platforms, 0 locally).
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
 });
 
 export type Env = z.infer<typeof envSchema>;

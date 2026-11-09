@@ -8,15 +8,23 @@ import { env } from './config/env';
 import { buildOpenApiDocument } from './docs/openapi';
 import { errorHandler } from './middleware/error-handler';
 import { notFound } from './middleware/not-found';
-import { apiRoutes } from './routes';
+import { apiRoutes, gatewayMount } from './routes';
 
 /** Builds the app without starting a server, so tests can call it directly. */
 export function createApp() {
   const app = express();
   const openApiDocument = buildOpenApiDocument();
 
+  // Hosting platforms put the app behind a proxy. Trusting one hop makes req.ip the real
+  // client address, taken from X-Forwarded-For, instead of the proxy's address.
+  app.set('trust proxy', env.TRUST_PROXY_HOPS);
+
   app.use(helmet());
   app.use(cors({ origin: env.CORS_ORIGINS, credentials: true }));
+
+  // The gateway comes before the JSON parser: it needs request bodies as untouched bytes.
+  app.use(gatewayMount.path, gatewayMount.router);
+
   app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
 

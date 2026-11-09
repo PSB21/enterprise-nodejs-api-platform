@@ -34,5 +34,7 @@ process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL = testUrl ?? 'postgresql://test:test@localhost:5432/test';
 process.env.MONGODB_URI = testMongo ?? 'mongodb://localhost:27017/ams_test';
 process.env.JWT_SECRET = 'test-secret-that-is-at-least-32-characters-long';
+process.env.GATEWAY_TIMEOUT_MS = '1000';
+process.env.UPSTREAM_ALLOWED_HOSTS = 'localhost,127.0.0.1';
 process.env.HAS_TEST_DATABASE = testUrl ? 'true' : 'false';
 process.env.HAS_TEST_MONGO = testMongo ? 'true' : 'false';

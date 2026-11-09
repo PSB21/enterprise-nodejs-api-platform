@@ -25,6 +25,8 @@ describe('parseEnv', () => {
       ACCESS_TOKEN_TTL_SECONDS: 900,
       REFRESH_TOKEN_TTL_DAYS: 7,
       UPSTREAM_ALLOWED_HOSTS: ['localhost', '127.0.0.1'],
+      GATEWAY_TIMEOUT_MS: 10_000,
+      TRUST_PROXY_HOPS: 0,
     });
   });
 

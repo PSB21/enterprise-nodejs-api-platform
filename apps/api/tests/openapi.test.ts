@@ -2,21 +2,25 @@ import request from 'supertest';
 
 import { createApp } from '../src/app';
 import { toOpenApiPath } from '../src/docs/openapi';
-import { apiRoutes } from '../src/routes';
+import { apiRoutes, gatewayMount } from '../src/routes';
 
 interface RouteLayer {
   route?: { path: string; methods: Record<string, boolean> };
 }
 
+// router.all() registers a catch-all; the docs list it as these methods.
+const ALL_METHODS = ['get', 'post', 'put', 'patch', 'delete'];
+
 /** Lists every real route as "METHOD /path", read from the Express routers themselves. */
 function mountedRoutes() {
   const found: string[] = [];
 
-  for (const { path, router } of apiRoutes) {
+  for (const { path, router } of [...apiRoutes, gatewayMount]) {
     for (const layer of router.stack as RouteLayer[]) {
       if (!layer.route) continue; // middleware, not a route
       const full = toOpenApiPath(`${path}${layer.route.path === '/' ? '' : layer.route.path}`);
-      for (const method of Object.keys(layer.route.methods)) {
+      const methods = layer.route.methods._all ? ALL_METHODS : Object.keys(layer.route.methods);
+      for (const method of methods) {
         found.push(`${method.toUpperCase()} ${full}`);
       }
     }

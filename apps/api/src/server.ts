@@ -2,6 +2,7 @@ import { createApp } from './app';
 import { env } from './config/env';
 import { connectMongo, disconnectMongo } from './db/mongo';
 import { prisma } from './db/prisma';
+import { usageRecorder } from './modules/usage/usage-recorder';
 
 async function main() {
   // Connect before accepting traffic, so the first requests do not fail.
@@ -13,11 +14,13 @@ async function main() {
 
   function shutdown(signal: NodeJS.Signals) {
     console.log(`${signal} received, shutting down`);
-    // Stop accepting connections, let requests in progress finish, then close the databases.
+    // Stop accepting connections, let requests in progress finish, write any buffered usage
+    // logs, then close the databases.
     server.close(() => {
-      void Promise.allSettled([prisma.$disconnect(), disconnectMongo()]).then(() =>
-        process.exit(0)
-      );
+      void usageRecorder
+        .stop()
+        .then(() => Promise.allSettled([prisma.$disconnect(), disconnectMongo()]))
+        .then(() => process.exit(0));
     });
   }
 
