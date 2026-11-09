@@ -1,7 +1,9 @@
 import type { Router } from 'express';
 
+import { accessRequestsRouter } from '../modules/access-requests/access-request.routes';
 import { apisRouter } from '../modules/apis/api.routes';
 import { authRouter } from '../modules/auth/auth.routes';
+import { notificationsRouter } from '../modules/notifications/notification.routes';
 import { usersRouter } from '../modules/users/users.routes';
 import { healthRouter } from './health.routes';
 
@@ -14,4 +16,6 @@ export const apiRoutes: { path: string; router: Router }[] = [
   { path: '/api/v1/auth', router: authRouter },
   { path: '/api/v1/users', router: usersRouter },
   { path: '/api/v1/apis', router: apisRouter },
+  { path: '/api/v1/access-requests', router: accessRequestsRouter },
+  { path: '/api/v1/notifications', router: notificationsRouter },
 ];

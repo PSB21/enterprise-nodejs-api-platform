@@ -7,6 +7,8 @@ import { errorSchema, pageMetaSchema } from './schemas';
 import '../modules/auth/auth.docs';
 import '../modules/users/users.docs';
 import '../modules/apis/api.docs';
+import '../modules/access-requests/access-request.docs';
+import '../modules/notifications/notification.docs';
 import '../routes/health.docs';
 
 type JsonSchema = Record<string, unknown>;
