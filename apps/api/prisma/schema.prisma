@@ -25,5 +25,25 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
+  refreshTokens RefreshToken[]
+
   @@map("users")
+}
+
+/// One row per refresh token ever issued. Only a hash is stored, so a database leak does not
+/// hand out working sessions. Tokens from one login share a familyId, so if an old token is
+/// reused (a sign it was stolen) the whole family can be revoked at once.
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familyId  String    @map("family_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([familyId])
+  @@index([userId])
+  @@map("refresh_tokens")
 }

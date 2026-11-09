@@ -21,6 +21,7 @@ const envSchema = z.object({
     .int()
     .positive()
     .default(15 * 60),
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(7),
 });
 
 export type Env = z.infer<typeof envSchema>;

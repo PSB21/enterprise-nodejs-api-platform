@@ -22,6 +22,7 @@ describe('parseEnv', () => {
       PORT: 5000,
       CORS_ORIGINS: ['http://localhost:3000'],
       ACCESS_TOKEN_TTL_SECONDS: 900,
+      REFRESH_TOKEN_TTL_DAYS: 7,
     });
   });
 
