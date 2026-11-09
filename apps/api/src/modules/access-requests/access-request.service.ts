@@ -123,6 +123,7 @@ export async function getAccessRequest(id: string, viewer: Viewer) {
 const MESSAGES: Record<string, (api: string) => string> = {
   approved: (api) => `Your access request for ${api} was approved. You can now create API keys.`,
   rejected: (api) => `Your access request for ${api} was rejected.`,
+  revoked: (api) => `Your access to ${api} was revoked, and its API keys no longer work.`,
 };
 
 /**

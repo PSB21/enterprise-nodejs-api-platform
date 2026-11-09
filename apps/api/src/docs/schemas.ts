@@ -63,6 +63,18 @@ export const accessRequestResponseSchema = z.object({
   updatedAt: z.iso.datetime(),
 });
 
+export const apiKeyResponseSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  prefix: z.string().describe('First 12 characters of the key, for telling keys apart'),
+  api: z.object({ id: z.string(), name: z.string().optional(), slug: z.string().optional() }),
+  accessRequestId: z.string(),
+  planName: z.string(),
+  lastUsedAt: z.iso.datetime().nullable(),
+  revokedAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+});
+
 export const notificationResponseSchema = z.object({
   id: z.string(),
   type: z.string().describe('For example access-request.approved'),

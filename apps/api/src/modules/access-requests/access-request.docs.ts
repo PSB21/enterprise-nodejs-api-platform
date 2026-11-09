@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { documentRoute } from '../../docs/registry';
 import { accessRequestResponseSchema } from '../../docs/schemas';
+import { revokeAccessSchema } from '../api-keys/api-key.schemas';
 import {
   accessRequestIdParams,
   approveSchema,
@@ -62,6 +63,7 @@ documentRoute({
 for (const [action, body, summary] of [
   ['approve', approveSchema, 'Approve a pending request'],
   ['reject', rejectSchema, 'Reject a pending request (a note is required)'],
+  ['revoke', revokeAccessSchema, 'Revoke approved access and every API key it issued'],
 ] as const) {
   documentRoute({
     method: 'post',
@@ -76,7 +78,7 @@ for (const [action, body, summary] of [
     responses: {
       200: { description: 'Updated', data: accessRequestResponseSchema },
       404: { description: 'Not found (ACCESS_REQUEST_NOT_FOUND)' },
-      409: { description: 'The request is not pending (INVALID_STATUS)' },
+      409: { description: 'The request is not in the right status (INVALID_STATUS)' },
     },
   });
 }

@@ -9,6 +9,7 @@ import '../modules/users/users.docs';
 import '../modules/apis/api.docs';
 import '../modules/access-requests/access-request.docs';
 import '../modules/notifications/notification.docs';
+import '../modules/api-keys/api-key.docs';
 import '../routes/health.docs';
 
 type JsonSchema = Record<string, unknown>;

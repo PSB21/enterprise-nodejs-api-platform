@@ -2,6 +2,8 @@ import { Router } from 'express';
 
 import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
+import { revokeAccessSchema } from '../api-keys/api-key.schemas';
+import { revokeKeysForRequest } from '../api-keys/api-key.service';
 import {
   accessRequestIdParams,
   approveSchema,
@@ -52,6 +54,25 @@ accessRequestsRouter.post('/:id/reject', authorize('PUBLISHER', 'ADMIN'), async 
   const { id } = accessRequestIdParams.parse(req.params);
   const { note } = rejectSchema.parse(req.body);
   const request = await service.transition(id, 'pending', 'rejected', req.user!, note);
+
+  res.json({ success: true, data: service.toAccessRequestResponse(request) });
+});
+
+/**
+ * Takes away approved access. The status change, revoking every key and the notification all
+ * happen in one transaction, so access can never end up revoked while a key still works.
+ */
+accessRequestsRouter.post('/:id/revoke', authorize('PUBLISHER', 'ADMIN'), async (req, res) => {
+  const { id } = accessRequestIdParams.parse(req.params);
+  const { note } = revokeAccessSchema.parse(req.body);
+  const request = await service.transition(
+    id,
+    'approved',
+    'revoked',
+    req.user!,
+    note,
+    (updated, session) => revokeKeysForRequest(updated._id, session)
+  );
 
   res.json({ success: true, data: service.toAccessRequestResponse(request) });
 });
