@@ -1,0 +1,41 @@
+# Render Blueprint for the API (free plan). See docs/DEPLOYMENT.md before using it.
+# Secrets marked `sync: false` are entered in the Render dashboard, never committed.
+services:
+  - type: web
+    name: ams-api
+    runtime: node
+    plan: free
+    region: singapore
+    # Build tools (TypeScript, Prisma CLI) are dev dependencies, and Render builds with
+    # NODE_ENV=production, which would skip them without --include=dev.
+    buildCommand: npm ci --include=dev && npm run build --workspace=@ams/api
+    startCommand: npm start
+    # Liveness only: the readiness check would fail while a free database wakes up.
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_VERSION
+        value: '24'
+      - key: NODE_ENV
+        value: production
+      # Fixed so the seeded sample API (http://localhost:5000/mock/orders) reaches this service.
+      - key: PORT
+        value: '5000'
+      - key: TRUST_PROXY_HOPS
+        value: '1'
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: UPSTREAM_ALLOWED_HOSTS
+        value: localhost,127.0.0.1
+      # inline: events are handled inside the API. Set to rabbitmq, with AMQP_URL and
+      # RUN_WORKER_IN_API=true, to use a hosted RabbitMQ on this single free service.
+      - key: EVENT_BUS
+        value: inline
+      # Optional: a hosted Redis URL (rediss://...) for shared rate limits and caching.
+      - key: REDIS_URL
+        sync: false
