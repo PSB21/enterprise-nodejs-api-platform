@@ -1,4 +1,4 @@
-import { mongo, trusted, type QueryFilter, type SortOrder } from 'mongoose';
+import { mongo, trusted, type QueryFilter } from 'mongoose';
 
 import { env } from '../../config/env';
 import { AppError } from '../../errors/app-error';
@@ -67,29 +67,95 @@ function isDuplicateKey(err: unknown) {
   return err instanceof mongo.MongoServerError && err.code === 11000;
 }
 
+/** Escapes regex special characters, so user input is matched literally and cannot build a slow pattern. */
+function escapeRegex(text: string) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export async function listApis(query: ListApisQuery, viewer: Viewer) {
   const conditions: QueryFilter<ApiFields>[] = [visibleTo(viewer)];
 
   if (query.status) conditions.push({ status: query.status });
-  if (query.tag) conditions.push({ tags: query.tag });
+  // Our own $in, so it is marked trusted; each tag was validated as a short string.
+  if (query.tags.length) conditions.push({ tags: trusted({ $in: query.tags }) });
   if (query.mine) conditions.push({ ownerId: viewer.id });
-  // sanitizeFilter blocks every $ operator, including ones we write ourselves. This one is safe
-  // to allow: the search term has been validated as a plain string.
-  // Mongoose checks the value under $text, so that is what gets marked as trusted.
-  if (query.q) conditions.push({ $text: trusted({ $search: query.q }) });
 
-  const filter = { $and: conditions };
-  // With a search term, rank by relevance; otherwise show the newest first.
-  const sort: Record<string, SortOrder | { $meta: 'textScore' }> = query.q
-    ? { score: { $meta: 'textScore' } }
-    : { createdAt: -1 };
+  if (!query.q) {
+    const filter = { $and: conditions };
+    const [apis, total] = await Promise.all([
+      ApiModel.find(filter).sort({ createdAt: -1 }).skip(toSkip(query)).limit(query.limit),
+      ApiModel.countDocuments(filter),
+    ]);
+    return { apis, meta: pageMeta(query, total) };
+  }
 
-  const [apis, total] = await Promise.all([
-    ApiModel.find(filter).sort(sort).skip(toSkip(query)).limit(query.limit),
-    ApiModel.countDocuments(filter),
+  // Partial, case-insensitive search: "logi" finds "logistics". The term is escaped, so it is
+  // matched as plain text. Trade-off: a pattern like this cannot use an index, so every API the
+  // user can see is checked. Fine for a catalog of this size; a large one would use a search
+  // engine such as Atlas Search.
+  const pattern = escapeRegex(query.q);
+  const matches = (field: string) => ({
+    $regexMatch: { input: field, regex: pattern, options: 'i' },
+  });
+  conditions.push({
+    $or: [
+      { name: { $regex: pattern, $options: 'i' } },
+      { tags: { $regex: pattern, $options: 'i' } },
+      { description: { $regex: pattern, $options: 'i' } },
+    ],
+  });
+
+  const [result] = await ApiModel.aggregate<{ data: ApiFields[]; total: { n: number }[] }>([
+    { $match: { $and: conditions } },
+    {
+      // Rank: a match in the name counts most, then a tag, then the description.
+      $addFields: {
+        relevance: {
+          $add: [
+            { $cond: [matches('$name'), 4, 0] },
+            {
+              $cond: [
+                { $gt: [{ $size: { $filter: { input: '$tags', cond: matches('$$this') } } }, 0] },
+                2,
+                0,
+              ],
+            },
+            { $cond: [matches('$description'), 1, 0] },
+          ],
+        },
+      },
+    },
+    { $sort: { relevance: -1, createdAt: -1 } },
+    // One pass returns both the page and the total count.
+    {
+      $facet: {
+        data: [{ $skip: toSkip(query) }, { $limit: query.limit }, { $unset: 'relevance' }],
+        total: [{ $count: 'n' }],
+      },
+    },
   ]);
 
-  return { apis, meta: pageMeta(query, total) };
+  return {
+    // Aggregation returns plain objects; hydrate turns them back into model documents.
+    apis: (result?.data ?? []).map((doc) => ApiModel.hydrate(doc)),
+    meta: pageMeta(query, result?.total[0]?.n ?? 0),
+  };
+}
+
+/**
+ * Every tag used by the APIs this user can see, with how many APIs carry it, most used first.
+ * Powers the catalog's tag filter. Counting only visible APIs keeps drafts' tags private.
+ */
+export async function listTags(viewer: Viewer) {
+  const rows = await ApiModel.aggregate<{ _id: string; count: number }>([
+    { $match: visibleTo(viewer) },
+    { $unwind: '$tags' },
+    { $group: { _id: '$tags', count: { $sum: 1 } } },
+    { $sort: { count: -1, _id: 1 } },
+    { $limit: 50 },
+  ]);
+
+  return rows.map((row) => ({ tag: row._id, count: row.count }));
 }
 
 /** Finds an API by id or slug. Hidden APIs return 404, not 403, so their existence stays private. */

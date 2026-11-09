@@ -13,11 +13,29 @@ documentRoute({
   summary: 'Browse the API catalog',
   description:
     'Developers see published APIs. Publishers also see their own drafts. Admins see everything. ' +
-    'With `q`, results are ranked by text relevance.',
+    '`q` matches part of a name, tag or description, ignoring case, ranked name first. `tags` takes a comma-separated list and ' +
+    'matches APIs with any of them. All filters combine.',
   auth: true,
   query: listApisQuery,
   responses: {
     200: { description: 'A page of APIs', data: z.array(apiResponseSchema), paginated: true },
+  },
+});
+
+documentRoute({
+  method: 'get',
+  path: `${base}/tags`,
+  tag: 'APIs',
+  summary: 'List the tags used in the catalog',
+  description:
+    'Tags of the APIs this user can see, with how many APIs use each, most used first. ' +
+    'Used to build the catalog filter.',
+  auth: true,
+  responses: {
+    200: {
+      description: 'Tags and counts',
+      data: z.array(z.object({ tag: z.string(), count: z.number().int() })),
+    },
   },
 });
 

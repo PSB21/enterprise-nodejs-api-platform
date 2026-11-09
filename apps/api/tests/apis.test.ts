@@ -128,13 +128,63 @@ describe('GET /api/v1/apis', () => {
     await createApi(publisher.user.id, { name: 'Weather Now', tags: ['weather'] });
 
     const search = await authed(app, dev.token).get('/api/v1/apis?q=weather');
-    const byTag = await authed(app, dev.token).get('/api/v1/apis?tag=logistics');
+    const byTag = await authed(app, dev.token).get('/api/v1/apis?tags=logistics');
 
     expect(search.body.data.map((a: { name: string }) => a.name)).toEqual([
       'Weather Now',
       'Shipping Tracker',
     ]);
     expect(byTag.body.data.map((a: { name: string }) => a.name)).toEqual(['Shipping Tracker']);
+  });
+
+  it('finds partial words, ignoring case', async () => {
+    const publisher = await createUser('PUBLISHER');
+    const dev = await createUser('DEVELOPER');
+    await createApi(publisher.user.id, { name: 'Shipping Tracker', tags: ['logistics'] });
+    await createApi(publisher.user.id, { name: 'Currency Rates', tags: ['finance'] });
+
+    const byTag = await authed(app, dev.token).get('/api/v1/apis?q=logi');
+    const byName = await authed(app, dev.token).get('/api/v1/apis?q=SHIPP');
+    const none = await authed(app, dev.token).get('/api/v1/apis?q=zzz');
+
+    expect(byTag.body.data.map((a: { name: string }) => a.name)).toEqual(['Shipping Tracker']);
+    expect(byName.body.meta.total).toBe(1);
+    expect(none.body.meta.total).toBe(0);
+  });
+
+  it('treats regex characters in the search as plain text', async () => {
+    const dev = await createUser('DEVELOPER');
+
+    const res = await authed(app, dev.token).get(`/api/v1/apis?q=${encodeURIComponent('(.*')}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.meta.total).toBe(0);
+  });
+
+  it('matches any of several tags, and combines tags with the other filters', async () => {
+    const publisher = await createUser('PUBLISHER');
+    const other = await createUser('PUBLISHER');
+    await createApi(publisher.user.id, { name: 'Maps', tags: ['geo'] });
+    await createApi(publisher.user.id, { name: 'Forecast', tags: ['weather'] });
+    await createApi(publisher.user.id, { name: 'Payments', tags: ['finance'] });
+    await createApi(other.user.id, { name: 'Their Maps', tags: ['geo'] });
+
+    const anyOf = await authed(app, publisher.token).get('/api/v1/apis?tags=geo,weather');
+    const combined = await authed(app, publisher.token).get(
+      '/api/v1/apis?tags=geo,weather&mine=true'
+    );
+
+    const names = (res: { body: { data: { name: string }[] } }) =>
+      res.body.data.map((a) => a.name).sort();
+    expect(names(anyOf)).toEqual(['Forecast', 'Maps', 'Their Maps']);
+    expect(names(combined)).toEqual(['Forecast', 'Maps']);
+  });
+
+  it('rejects more than 10 tags', async () => {
+    const dev = await createUser('DEVELOPER');
+    const tags = Array.from({ length: 11 }, (_, i) => `t${i}`).join(',');
+
+    expect((await authed(app, dev.token).get(`/api/v1/apis?tags=${tags}`)).status).toBe(400);
   });
 
   it('pages results', async () => {
@@ -150,7 +200,7 @@ describe('GET /api/v1/apis', () => {
   it('rejects a repeated query parameter instead of passing an array to MongoDB', async () => {
     const dev = await createUser('DEVELOPER');
 
-    const res = await authed(app, dev.token).get('/api/v1/apis?tag=a&tag=b');
+    const res = await authed(app, dev.token).get('/api/v1/apis?q=a&q=b');
 
     expect(res.status).toBe(400);
   });
@@ -161,10 +211,29 @@ describe('GET /api/v1/apis', () => {
     await createApi(publisher.user.id, { tags: ['weather'] });
 
     // With an object-parsing query parser this would become { tags: { $ne: 'x' } }.
-    const res = await authed(app, dev.token).get('/api/v1/apis?tag[$ne]=x');
+    const res = await authed(app, dev.token).get('/api/v1/apis?tags[$ne]=x');
 
     expect(res.status).toBe(200);
     expect(res.body.meta.total).toBe(1);
+  });
+});
+
+describe('GET /api/v1/apis/tags', () => {
+  it('counts tags across visible APIs only, most used first', async () => {
+    const publisher = await createUser('PUBLISHER');
+    const dev = await createUser('DEVELOPER');
+    await createApi(publisher.user.id, { tags: ['geo', 'maps'] });
+    await createApi(publisher.user.id, { tags: ['geo'] });
+    await createApi(publisher.user.id, { tags: ['secret-project'], status: 'draft' });
+
+    const asDev = await authed(app, dev.token).get('/api/v1/apis/tags');
+    const asOwner = await authed(app, publisher.token).get('/api/v1/apis/tags');
+
+    expect(asDev.body.data).toEqual([
+      { tag: 'geo', count: 2 },
+      { tag: 'maps', count: 1 },
+    ]);
+    expect(asOwner.body.data.map((t: { tag: string }) => t.tag)).toContain('secret-project');
   });
 });
 

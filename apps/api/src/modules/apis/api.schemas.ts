@@ -59,7 +59,15 @@ export const updateApiSchema = apiFields
 
 export const listApisQuery = paginationSchema.extend({
   q: z.string().trim().min(1).max(100).optional(),
-  tag: z.string().trim().toLowerCase().max(30).optional(),
+  // Comma-separated, e.g. tags=maps,weather. An API matching any of them is included.
+  tags: z
+    .string()
+    .max(320)
+    .optional()
+    .transform((value) =>
+      [...new Set((value ?? '').split(',').map((t) => t.trim().toLowerCase()))].filter(Boolean)
+    )
+    .pipe(z.array(z.string().max(30)).max(10, 'At most 10 tags')),
   status: z.enum(API_STATUSES).optional(),
   mine: z
     .enum(['true', 'false'])

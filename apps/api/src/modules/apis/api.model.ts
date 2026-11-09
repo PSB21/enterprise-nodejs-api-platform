@@ -39,11 +39,8 @@ const apiSchema = new Schema(
   { timestamps: true }
 );
 
-// Text search over the catalog. Weights rank a match in the name above one in the description.
-apiSchema.index(
-  { name: 'text', tags: 'text', description: 'text' },
-  { weights: { name: 5, tags: 3, description: 1 }, name: 'catalog_text' }
-);
+// Search uses partial (regex) matching instead of a text index, because a text index only
+// matches whole words: "logi" would not find "logistics". See listApis in api.service.ts.
 // Serves the default catalog listing: filter by status, newest first.
 apiSchema.index({ status: 1, createdAt: -1 });
 apiSchema.index({ ownerId: 1, createdAt: -1 });

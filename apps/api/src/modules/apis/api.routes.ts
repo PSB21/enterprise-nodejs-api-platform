@@ -21,6 +21,11 @@ apisRouter.get('/', async (req, res) => {
   });
 });
 
+// Must come before /:idOrSlug, or "tags" would be treated as an API's slug.
+apisRouter.get('/tags', async (req, res) => {
+  res.json({ success: true, data: await apiService.listTags(req.user!) });
+});
+
 apisRouter.get('/:idOrSlug', async (req, res) => {
   const { idOrSlug } = idOrSlugParams.parse(req.params);
   const api = await apiService.getVisibleApi(idOrSlug, req.user!);
