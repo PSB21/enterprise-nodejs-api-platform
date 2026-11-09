@@ -10,6 +10,8 @@ A platform where publishers list APIs, developers request access and receive API
 - Environment validation at startup
 - One JSON error format, including 404s and malformed requests
 - Security headers (Helmet) and a CORS allowlist
+- PostgreSQL (Neon) with Prisma: `users` table and migrations
+- Liveness and readiness endpoints
 - Jest and Supertest tests
 
 ## Planned
@@ -25,7 +27,8 @@ Requires Node.js 24 (see `.nvmrc`).
 
 ```bash
 npm install
-cp apps/api/.env.example apps/api/.env
+cp apps/api/.env.example apps/api/.env   # then add your database URLs
+npm run db:deploy --workspace=@ams/api   # create the database tables
 npm run dev
 ```
 

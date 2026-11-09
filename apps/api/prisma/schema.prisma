@@ -1,0 +1,29 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+// The connection URL lives in prisma.config.ts (migrations) and src/db/prisma.ts (the app).
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  PUBLISHER
+  DEVELOPER
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @db.VarChar(100)
+  // The app stores emails in lowercase, so this also blocks duplicates that differ only by case.
+  email        String   @unique @db.VarChar(254)
+  passwordHash String   @map("password_hash")
+  role         Role     @default(DEVELOPER)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("users")
+}
