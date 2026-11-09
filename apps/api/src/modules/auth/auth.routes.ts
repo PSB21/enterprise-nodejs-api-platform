@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import { AppError } from '../../errors/app-error';
 import { authenticate } from '../../middleware/authenticate';
+import { loginRateLimit } from '../../middleware/login-rate-limit';
 import { toPublicUser } from '../users/user.dto';
 import { signAccessToken } from './access-token';
 import { loginSchema, registerSchema } from './auth.schemas';
@@ -18,7 +19,7 @@ authRouter.post('/register', async (req, res) => {
   res.status(201).json({ success: true, data: { user } });
 });
 
-authRouter.post('/login', async (req, res) => {
+authRouter.post('/login', loginRateLimit, async (req, res) => {
   const input = loginSchema.parse(req.body);
   const user = await authService.login(input);
   const refresh = await issueRefreshToken(user.id);

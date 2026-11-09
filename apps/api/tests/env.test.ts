@@ -27,6 +27,8 @@ describe('parseEnv', () => {
       UPSTREAM_ALLOWED_HOSTS: ['localhost', '127.0.0.1'],
       GATEWAY_TIMEOUT_MS: 10_000,
       TRUST_PROXY_HOPS: 0,
+      CACHE_ENABLED: true,
+      RATE_LIMIT_ENABLED: true,
     });
   });
 

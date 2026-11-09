@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
 import { revokeAccessSchema } from '../api-keys/api-key.schemas';
-import { revokeKeysForRequest } from '../api-keys/api-key.service';
+import { invalidateKeysForRequest, revokeKeysForRequest } from '../api-keys/api-key.service';
 import type { AccessRequestDocument } from './access-request.model';
 import {
   accessRequestIdParams,
@@ -75,6 +75,9 @@ accessRequestsRouter.post('/:id/revoke', authorize('PUBLISHER', 'ADMIN'), async 
     note,
     (updated, session) => revokeKeysForRequest(updated._id, session)
   );
+  // Only after the transaction has committed: clearing the cache earlier could let the
+  // gateway re-cache a key that a rolled-back transaction left active.
+  await invalidateKeysForRequest(request._id);
 
   res.json({ success: true, data: await present(request) });
 });

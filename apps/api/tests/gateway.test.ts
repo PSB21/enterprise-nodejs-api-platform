@@ -6,6 +6,8 @@ import request from 'supertest';
 
 import { createApp } from '../src/app';
 import { prisma } from '../src/db/prisma';
+import { resetCache } from '../src/lib/cache';
+import { resetRateLimiter } from '../src/lib/rate-limiter';
 import { ApiModel } from '../src/modules/apis/api.model';
 import { ApiKeyModel } from '../src/modules/api-keys/api-key.model';
 import { UsageLogModel } from '../src/modules/usage/usage-log.model';
@@ -14,7 +16,7 @@ import { issueKey } from './helpers/access';
 import { createApi } from './helpers/apis';
 import { requireTestDatabase, resetPostgres } from './helpers/db';
 import { resetMongo, setupMongo, teardownMongo } from './helpers/mongo';
-import { createUser } from './helpers/users';
+import { authed, createUser } from './helpers/users';
 
 const app = createApp();
 let upstream: Server;
@@ -57,6 +59,8 @@ beforeEach(async () => {
   // Write logs buffered by the previous test first, or they would land after the reset.
   await usageRecorder.flush();
   await Promise.all([resetPostgres(), resetMongo()]);
+  resetCache();
+  resetRateLimiter();
 });
 afterAll(async () => {
   upstream.close();
@@ -209,6 +213,92 @@ describe('forwarding', () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.deprecation).toBe('true');
+  });
+});
+
+describe('caching', () => {
+  it('looks a key up in the database once, then serves it from the cache', async () => {
+    const { api, key } = await setup();
+    const lookups = jest.spyOn(ApiKeyModel, 'findOne');
+
+    await call(`/gateway/${api.slug}/orders`, key);
+    await call(`/gateway/${api.slug}/orders`, key);
+
+    expect(lookups).toHaveBeenCalledTimes(1);
+    lookups.mockRestore();
+  });
+
+  it('stops a revoked key at once, even though it was cached', async () => {
+    const { api, key, apiKey, dev } = await setup();
+    expect((await call(`/gateway/${api.slug}/orders`, key)).status).toBe(200);
+
+    await authed(app, dev.token).delete(`/api/v1/api-keys/${apiKey.id}`);
+
+    expect((await call(`/gateway/${api.slug}/orders`, key)).status).toBe(401);
+  });
+
+  it('stops keys at once when access is revoked', async () => {
+    const { api, key, publisher } = await setup();
+    expect((await call(`/gateway/${api.slug}/orders`, key)).status).toBe(200);
+    const [request] = (await authed(app, publisher.token).get('/api/v1/access-requests')).body.data;
+
+    await authed(app, publisher.token)
+      .post(`/api/v1/access-requests/${request.id}/revoke`)
+      .send({ note: 'Access ended' });
+
+    expect((await call(`/gateway/${api.slug}/orders`, key)).status).toBe(401);
+  });
+
+  it('applies a status change made through the API at once', async () => {
+    const { api, key, publisher } = await setup();
+    expect((await call(`/gateway/${api.slug}/orders`, key)).status).toBe(200);
+
+    await authed(app, publisher.token).patch(`/api/v1/apis/${api.slug}`).send({ status: 'draft' });
+
+    expect((await call(`/gateway/${api.slug}/orders`, key)).status).toBe(404);
+  });
+});
+
+describe('plan limits', () => {
+  it("enforces the plan's requests per minute, with rate limit headers", async () => {
+    // The test helper's Free plan allows 10 requests per minute.
+    const { api, key } = await setup();
+
+    const responses = [];
+    for (let i = 0; i < 11; i += 1) responses.push(await call(`/gateway/${api.slug}/orders`, key));
+
+    expect(responses.slice(0, 10).every((r) => r.status === 200)).toBe(true);
+    expect(responses[0]!.headers['x-ratelimit-limit']).toBe('10');
+    expect(responses[9]!.headers['x-ratelimit-remaining']).toBe('0');
+    const limited = responses[10]!;
+    expect(limited.status).toBe(429);
+    expect(limited.body.error.code).toBe('RATE_LIMITED');
+    expect(Number(limited.headers['retry-after'])).toBeGreaterThan(0);
+  });
+
+  it('enforces a monthly quota', async () => {
+    const { api, key } = await setup({
+      plans: [{ name: 'Free', rateLimitPerMinute: 100, monthlyQuota: 2 }],
+    });
+
+    await call(`/gateway/${api.slug}/orders`, key);
+    await call(`/gateway/${api.slug}/orders`, key);
+    const third = await call(`/gateway/${api.slug}/orders`, key);
+
+    expect(third.status).toBe(429);
+    expect(third.body.error.code).toBe('QUOTA_EXCEEDED');
+  });
+
+  it('logs rate-limited calls, so they show up in analytics', async () => {
+    const { api, key } = await setup({
+      plans: [{ name: 'Free', rateLimitPerMinute: 1 }],
+    });
+
+    await call(`/gateway/${api.slug}/orders`, key);
+    await call(`/gateway/${api.slug}/orders`, key);
+    await usageRecorder.flush();
+
+    expect((await UsageLogModel.find().lean()).map((l) => l.statusCode).sort()).toEqual([200, 429]);
   });
 });
 

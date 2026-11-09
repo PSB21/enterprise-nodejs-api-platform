@@ -6,6 +6,7 @@ import { pageMeta, toSkip, type Pagination } from '../../lib/pagination';
 import { apiSummaries } from '../access-requests/access-request.service';
 import { AccessRequestModel } from '../access-requests/access-request.model';
 import type { Viewer } from '../apis/api.service';
+import { invalidateKeys } from '../gateway/gateway.service';
 import { ApiKeyModel, type ApiKeyDocument } from './api-key.model';
 
 /** A developer may hold this many working keys per approved request, for rotation. */
@@ -104,7 +105,15 @@ export async function revokeApiKey(id: string, viewer: Viewer) {
     await key.save();
   }
 
+  // The gateway caches keys; without this, a revoked key would keep working until it expired.
+  await invalidateKeys([key.keyHash]);
   return key;
+}
+
+/** Clears the gateway cache for every key of a request, after its keys were revoked. */
+export async function invalidateKeysForRequest(accessRequestId: Types.ObjectId) {
+  const keys = await ApiKeyModel.find({ accessRequestId }).select('keyHash').lean();
+  await invalidateKeys(keys.map((k) => k.keyHash));
 }
 
 /** Revokes every key issued for an access request, as part of the caller's transaction. */

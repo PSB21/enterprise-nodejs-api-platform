@@ -3,7 +3,13 @@ import express, { Router, type Request, type Response } from 'express';
 import { env } from '../../config/env';
 import { AppError } from '../../errors/app-error';
 import { usageRecorder } from '../usage/usage-recorder';
-import { buildUpstreamUrl, findActiveKey, findServedApi, touchKey } from './gateway.service';
+import {
+  buildUpstreamUrl,
+  enforcePlan,
+  findActiveKey,
+  findServedApi,
+  touchKey,
+} from './gateway.service';
 
 export const gatewayRouter = Router();
 
@@ -52,13 +58,27 @@ gatewayRouter.all('/:slug{/*path}', async (req, res) => {
 
   const [key, api] = await Promise.all([findActiveKey(rawKey), findServedApi(req.params.slug)]);
 
-  if (!key.apiId.equals(api._id)) {
+  if (key.apiId !== api.id) {
     throw new AppError(403, 'KEY_NOT_VALID_FOR_API', 'This key belongs to a different API');
   }
 
   // From here on, the request is attributed to this key and logged, even if it fails.
-  res.locals.usage = { apiId: api._id, keyId: key._id, developerId: key.developerId };
-  touchKey(key._id);
+  res.locals.usage = { apiId: api.id, keyId: key.id, developerId: key.developerId };
+  touchKey(key.id);
+
+  // Throws 429 when the plan's per-minute limit or monthly quota is used up.
+  const limit = await enforcePlan(key, api).catch((err: unknown) => {
+    const retryAfter = (err as AppError).details as { retryAfterSeconds?: number } | undefined;
+    if (retryAfter?.retryAfterSeconds) res.set('Retry-After', String(retryAfter.retryAfterSeconds));
+    throw err;
+  });
+  if (limit) {
+    res.set({
+      'X-RateLimit-Limit': String(limit.limit),
+      'X-RateLimit-Remaining': String(limit.remaining),
+      'X-RateLimit-Reset': String(limit.resetSeconds),
+    });
+  }
 
   const segments = (req.params as { path?: string[] }).path ?? [];
   const target = buildUpstreamUrl(api.upstreamUrl, segments, req.originalUrl);

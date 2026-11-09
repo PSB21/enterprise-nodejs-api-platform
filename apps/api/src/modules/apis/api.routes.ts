@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
+import { invalidateApi } from '../gateway/gateway.service';
 import { createApiSchema, idOrSlugParams, listApisQuery, updateApiSchema } from './api.schemas';
 import * as apiService from './api.service';
 
@@ -38,6 +39,8 @@ apisRouter.patch('/:idOrSlug', authorize('PUBLISHER', 'ADMIN'), async (req, res)
   const { idOrSlug } = idOrSlugParams.parse(req.params);
   const input = updateApiSchema.parse(req.body);
   const api = await apiService.updateApi(idOrSlug, input, req.user!);
+  // The gateway caches APIs by slug; clear it so a status or upstream change applies at once.
+  await invalidateApi(api.slug);
 
   res.json({ success: true, data: apiService.toApiResponse(api, req.user!) });
 });

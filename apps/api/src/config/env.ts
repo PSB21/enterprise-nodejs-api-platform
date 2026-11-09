@@ -34,6 +34,16 @@ const envSchema = z.object({
   GATEWAY_TIMEOUT_MS: z.coerce.number().int().min(100).max(60_000).default(10_000),
   // Number of proxies in front of the app (1 on most hosting platforms, 0 locally).
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
+  // Optional. Without it, rate limits and caches are kept in memory.
+  REDIS_URL: z.url({ protocol: /^rediss?$/ }).optional(),
+  CACHE_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((value) => value === 'true'),
+  RATE_LIMIT_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((value) => value === 'true'),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -16,7 +16,8 @@ for (const method of ['get', 'post', 'put', 'patch', 'delete'] as HttpMethod[]) 
     description:
       'Send your key in the `x-api-key` header. The request is forwarded to the API with its ' +
       'path, query string and body; the response comes back unchanged. Every call is logged ' +
-      'for usage analytics. Deprecated APIs add a `Deprecation: true` header.',
+      'for usage analytics. Deprecated APIs add a `Deprecation: true` header. Responses carry ' +
+      '`X-RateLimit-Limit`, `X-RateLimit-Remaining` and `X-RateLimit-Reset` (seconds).',
     params,
     responses: {
       200: { description: "The upstream API's response, passed through" },
@@ -24,6 +25,10 @@ for (const method of ['get', 'post', 'put', 'patch', 'delete'] as HttpMethod[]) 
       401: { description: 'Missing, invalid or revoked API key' },
       403: { description: 'The key belongs to a different API (KEY_NOT_VALID_FOR_API)' },
       404: { description: 'No such API, or it is not published (API_NOT_FOUND)' },
+      429: {
+        description:
+          "The plan's per-minute limit (RATE_LIMITED, with Retry-After) or monthly quota (QUOTA_EXCEEDED) is used up",
+      },
       502: { description: 'The upstream could not be reached (UPSTREAM_UNAVAILABLE)' },
       504: { description: 'The upstream timed out (UPSTREAM_TIMEOUT)' },
     },

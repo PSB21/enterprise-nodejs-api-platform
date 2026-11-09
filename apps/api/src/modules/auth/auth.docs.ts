@@ -29,6 +29,7 @@ documentRoute({
   responses: {
     200: { description: 'Logged in', data: sessionSchema },
     401: { description: 'Wrong email or password (INVALID_CREDENTIALS)' },
+    429: { description: 'More than 10 attempts in 15 minutes (TOO_MANY_ATTEMPTS)' },
   },
 });
 

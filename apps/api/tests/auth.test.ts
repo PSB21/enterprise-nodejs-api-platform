@@ -3,6 +3,7 @@ import request from 'supertest';
 
 import { createApp } from '../src/app';
 import { prisma } from '../src/db/prisma';
+import { resetRateLimiter } from '../src/lib/rate-limiter';
 import { requireTestDatabase, resetPostgres } from './helpers/db';
 import { createUser } from './helpers/users';
 
@@ -110,6 +111,24 @@ describe('POST /api/v1/auth/login', () => {
     expect(wrongPassword.status).toBe(401);
     expect(unknownEmail.status).toBe(401);
     expect(wrongPassword.body).toEqual(unknownEmail.body);
+  });
+});
+
+describe('login rate limit', () => {
+  it('blocks the 11th attempt in 15 minutes for the same address and email', async () => {
+    resetRateLimiter();
+    const { user } = await createUser();
+    const attempt = () =>
+      request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: user.email, password: 'wrong-password' });
+
+    for (let i = 0; i < 10; i += 1) expect((await attempt()).status).toBe(401);
+    const blocked = await attempt();
+
+    expect(blocked.status).toBe(429);
+    expect(blocked.body.error.code).toBe('TOO_MANY_ATTEMPTS');
+    expect(Number(blocked.headers['retry-after'])).toBeGreaterThan(0);
   });
 });
 
