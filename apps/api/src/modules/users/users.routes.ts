@@ -1,26 +1,21 @@
 import { Router } from 'express';
-import { z } from 'zod';
 
 import { prisma } from '../../db/prisma';
 import { AppError } from '../../errors/app-error';
-import { Role } from '../../generated/prisma/enums';
-import { pageMeta, paginationSchema, toSkip } from '../../lib/pagination';
+import { pageMeta, toSkip } from '../../lib/pagination';
 import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
 import { revokeAllForUser } from '../auth/refresh-token';
 import { toPublicUser } from './user.dto';
+import { changeRoleBody, listUsersQuery, userIdParams } from './users.schemas';
 
 export const usersRouter = Router();
 
 // Every route below is for admins only.
 usersRouter.use(authenticate, authorize('ADMIN'));
 
-const listQuery = paginationSchema.extend({ role: z.enum(Role).optional() });
-const idParams = z.object({ id: z.uuid() });
-const roleBody = z.object({ role: z.enum(Role) });
-
 usersRouter.get('/', async (req, res) => {
-  const query = listQuery.parse(req.query);
+  const query = listUsersQuery.parse(req.query);
   const where = query.role ? { role: query.role } : {};
 
   const [users, total] = await Promise.all([
@@ -37,8 +32,8 @@ usersRouter.get('/', async (req, res) => {
 });
 
 usersRouter.patch('/:id/role', async (req, res) => {
-  const { id } = idParams.parse(req.params);
-  const { role } = roleBody.parse(req.body);
+  const { id } = userIdParams.parse(req.params);
+  const { role } = changeRoleBody.parse(req.body);
 
   // Stops an admin from demoting themselves and leaving nobody able to manage roles.
   if (id === req.user!.id) {

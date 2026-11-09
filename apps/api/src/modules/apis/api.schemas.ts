@@ -5,6 +5,8 @@ import { API_STATUSES } from './api.model';
 
 export const objectIdSchema = z.string().regex(/^[a-f0-9]{24}$/i, 'Must be a valid id');
 
+export const idOrSlugParams = z.object({ idOrSlug: z.string().min(1).max(60) });
+
 const slugSchema = z
   .string()
   .trim()

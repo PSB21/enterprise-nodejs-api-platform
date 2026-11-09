@@ -5,8 +5,13 @@ import { PrismaClient } from '../generated/prisma/client';
 
 function createPrismaClient() {
   const url = new URL(env.DATABASE_URL);
-  // Check the server's certificate and hostname, so the connection can't be silently intercepted.
-  url.searchParams.set('sslmode', 'verify-full');
+
+  // When the URL asks for SSL (Neon's do), also check the server's certificate and hostname,
+  // so the connection cannot be silently intercepted. A local Postgres without SSL, as in CI,
+  // is left as it is.
+  if (url.searchParams.get('sslmode') === 'require') {
+    url.searchParams.set('sslmode', 'verify-full');
+  }
 
   const adapter = new PrismaPg({
     connectionString: url.toString(),

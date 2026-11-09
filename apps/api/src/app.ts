@@ -2,28 +2,40 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
+import swaggerUi from 'swagger-ui-express';
 
 import { env } from './config/env';
+import { buildOpenApiDocument } from './docs/openapi';
 import { errorHandler } from './middleware/error-handler';
 import { notFound } from './middleware/not-found';
-import { apisRouter } from './modules/apis/api.routes';
-import { authRouter } from './modules/auth/auth.routes';
-import { usersRouter } from './modules/users/users.routes';
-import { healthRouter } from './routes/health.routes';
+import { apiRoutes } from './routes';
 
 /** Builds the app without starting a server, so tests can call it directly. */
 export function createApp() {
   const app = express();
+  const openApiDocument = buildOpenApiDocument();
 
   app.use(helmet());
   app.use(cors({ origin: env.CORS_ORIGINS, credentials: true }));
   app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
 
-  app.use('/api/v1/health', healthRouter);
-  app.use('/api/v1/auth', authRouter);
-  app.use('/api/v1/users', usersRouter);
-  app.use('/api/v1/apis', apisRouter);
+  for (const { path, router } of apiRoutes) {
+    app.use(path, router);
+  }
+
+  app.get('/api/docs/openapi.json', (_req, res) => {
+    res.json(openApiDocument);
+  });
+  app.use(
+    '/api/docs',
+    // Swagger UI needs inline styles and data: images, which the default policy blocks.
+    helmet.contentSecurityPolicy({
+      directives: { styleSrc: ["'self'", "'unsafe-inline'"], imgSrc: ["'self'", 'data:'] },
+    }),
+    swaggerUi.serve,
+    swaggerUi.setup(openApiDocument, { customSiteTitle: 'API Management System docs' })
+  );
 
   // Order matters: these two must stay after all routes.
   app.use(notFound);

@@ -1,16 +1,13 @@
 import { Router } from 'express';
-import { z } from 'zod';
 
 import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
-import { createApiSchema, listApisQuery, updateApiSchema } from './api.schemas';
+import { createApiSchema, idOrSlugParams, listApisQuery, updateApiSchema } from './api.schemas';
 import * as apiService from './api.service';
 
 export const apisRouter = Router();
 
 apisRouter.use(authenticate);
-
-const idOrSlugParams = z.object({ idOrSlug: z.string().min(1).max(60) });
 
 apisRouter.get('/', async (req, res) => {
   const query = listApisQuery.parse(req.query);
